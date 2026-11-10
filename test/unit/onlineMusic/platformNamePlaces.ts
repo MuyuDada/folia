@@ -30,8 +30,10 @@ export interface PlatformNamePlace {
 
 export const PLATFORM_NAME_PLACES: Record<string, PlatformNamePlace> = {
     'api-ts/lyric-proxy.ts': { n: { qq: 2, kugou: 1 }, kind: 'main', why: 'the hosts the lyric relay may reach' },
+    'api-ts/lx-source.ts': { n: { netease: 1, qq: 1, kugou: 1 }, kind: 'main', why: 'the table that reads a platform id off a song and names the LX script source it becomes' },
     'api-ts/qq.ts': { n: { qq: 10 }, kind: 'main', why: 'the serverless entry of the QQ backend; the host finds it by path' },
     'api/lyric-proxy.js': { n: { qq: 2, kugou: 1 }, kind: 'main', why: 'the built copy of api-ts/lyric-proxy.ts' },
+    'api/lx-source.js': { n: { netease: 1, qq: 1, kugou: 1 }, kind: 'main', why: 'the built copy of api-ts/lx-source.ts' },
     'api/qq.js': { n: { qq: 10 }, kind: 'main', why: 'the built copy of api-ts/qq.ts' },
     'electron/aiCredentialStore.cjs': { n: { qq: 1, kugou: 1, bodian: 1 }, kind: 'doc' },
     'electron/backendLifecycle.cjs': { n: { netease: 1, qq: 1 }, kind: 'doc' },
