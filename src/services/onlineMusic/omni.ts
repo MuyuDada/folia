@@ -76,6 +76,7 @@ import {
     readRecommendationPreferenceEntries,
 } from './recommendationPreferences';
 import { applyOmniAudioHook, applyOmniLyricsHook } from '../hostExtensionHooks';
+import { applyLxSourceBridge } from '../lxSourceBridge';
 import { createLikePresses } from '../../utils/likePresses';
 import type { LikePress, LikePresses } from '../../utils/likePresses';
 import { noteLoginFailure } from './login/loginFailureCase';
@@ -1205,6 +1206,10 @@ export const omni = {
             // without one the very error goes on, for the caller to sort (failure/onlineFailureCase.ts).
             const fromHook = await applyOmniAudioHook(song, null);
             if (fromHook?.url) return fromHook;
+            // The web build's LX source bridge stands in where the provider has nothing: its script may resolve a
+            // song the platform refused. Natively nothing is configured, and this hands back the null it was given.
+            const fromLxSource = await applyLxSourceBridge(provider.id, song, quality, null);
+            if (fromLxSource?.url) return fromLxSource;
             throw error;
         }
         // Written here rather than at either caller because this is the only moment a provider ever
@@ -1229,7 +1234,10 @@ export const omni = {
             });
         }
         // Extension layers (Folium omni hooks) may swap the URL; the ReplayGain above stays the provider's.
-        return applyOmniAudioHook(song, source);
+        // The web build's LX source bridge is the last layer: it answers with the platform's own source unless the
+        // deployment has a script that can take this platform over.
+        const hooked = await applyOmniAudioHook(song, source);
+        return await applyLxSourceBridge(provider.id, song, quality, hooked);
     },
 
     // The level a URL handed out by `getAudioSource` was asked for at. Undefined for any other URL
