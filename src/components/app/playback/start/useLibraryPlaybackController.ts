@@ -31,6 +31,7 @@ import { getPlatformLyricSource } from '../../../../utils/lyrics/lyricSources';
 import { resolveExplicitFileTimedLyricFormat } from '../../../../utils/lyrics/formatDetection';
 import { applyUploadedLocalLyrics } from '../../../../utils/lyrics/localLyricsUpload';
 import { omni } from '../../../../services/onlineMusic/omni';
+import { onlineMutationFailureText } from '../../../../services/onlineMusic/failure/onlineMutationFailure';
 import { getProviderSongMetadata } from '../../../../services/onlineMusic/songMetadata';
 import { getSongResourceCacheKey } from '../../../../services/onlineMusic/resourceKeys';
 import { getSongCacheWithLegacyMigration } from '../../../../services/onlineMusic/resourceCache';
@@ -965,7 +966,7 @@ export function useLibraryPlaybackController({
             if (!nextLyrics && !matchData?.noAutoMatch && !matchData?.matchedIsPureMusic) {
                 try {
                     if (!showedLoadingToast && !start.quiet) {
-                        setStatusMsg({ type: 'info', text: t('status.loadingSong') || '' });
+                        setStatusMsg({ type: 'info', activity: 'loading', text: t('status.loadingSong') || '' });
                         showedLoadingToast = true;
                     }
                     const navidromeMetadata = getProviderSongMetadata(navidromeSong);
@@ -1077,7 +1078,7 @@ export function useLibraryPlaybackController({
             }
 
             if (!coverUrl) {
-                coverUrl = getProviderSongMetadata(navidromeSong).coverUrl || navidromeApi.getCoverArtUrl(config, navidromeId);
+                coverUrl = getProviderSongMetadata(navidromeSong).coverUrl || navidromeApi.getCoverArtUrl(config, navidromeId, 600);
             }
 
             // The HiFi route also takes the file's format from the server's record: its signal path shows it.
@@ -1511,7 +1512,7 @@ export function useLibraryPlaybackController({
         }
 
   const settingsLyricSettings = useLyricSettingsStore.getState();
-        setStatusMsg({ type: 'info', text: t('status.matchingBestLyrics') || '' });
+        setStatusMsg({ type: 'info', activity: 'loading', text: t('status.matchingBestLyrics') || '' });
 
         try {
             if (isLocalPlaybackSong(currentSong)) {
@@ -1781,11 +1782,11 @@ export function useLibraryPlaybackController({
                 if (outcome.ok || failedLikeRunsSaid.has(press.settled)) return;
                 failedLikeRunsSaid.add(press.settled);
                 console.error('Like failed', outcome.error);
-                setStatusMsg({ type: 'error', text: t('status.likeFailed') });
+                setStatusMsg({ type: 'error', text: onlineMutationFailureText(outcome.error, t('status.likeFailed'), t) });
             });
         } catch (error) {
             console.error('Like failed', error);
-            setStatusMsg({ type: 'error', text: t('status.likeFailed') });
+            setStatusMsg({ type: 'error', text: onlineMutationFailureText(error, t('status.likeFailed'), t) });
         }
     }, [
         currentSong,

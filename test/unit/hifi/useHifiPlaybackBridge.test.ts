@@ -295,7 +295,7 @@ describe('useHifiPlaybackBridge', () => {
 
         await pushState({ trackKey, status: 'ended', paused: true, durationSec: 180 });
         expect(handleNextTrack).toHaveBeenCalledTimes(1);
-        expect(handleNextTrack).toHaveBeenCalledWith({ allowStopOnMissing: true, shouldNavigateToPlayer: false });
+        expect(handleNextTrack).toHaveBeenCalledWith({ allowStopOnMissing: true, playedToEnd: true, shouldNavigateToPlayer: false });
         expect(api.stop).not.toHaveBeenCalled();
 
         // The same end pushed again (a snapshot, a coalesced repeat) is not a second end.
@@ -457,7 +457,7 @@ describe('useHifiPlaybackBridge', () => {
         useHifiEngineStore.setState({ circuitOpen: false });
     });
 
-    it('sets loop-file on mpv when the loop mode changes on the HiFi route, never in Personal FM', async () => {
+    it('sets loop-file on mpv when the loop mode changes on the HiFi route, Personal FM included', async () => {
         const { rerender } = mount();
         rerender({ effectiveLoopMode: 'one' });
         expect(api.setLoopFile).not.toHaveBeenCalled();
@@ -468,8 +468,10 @@ describe('useHifiPlaybackBridge', () => {
         expect(api.setLoopFile).toHaveBeenLastCalledWith(false);
         rerender({ effectiveLoopMode: 'one' });
         expect(api.setLoopFile).toHaveBeenLastCalledWith(true);
+        // Personal FM keeps the file looping: entering it sends nothing new.
+        const callsBeforeFm = api.setLoopFile.mock.calls.length;
         rerender({ isFmMode: true });
-        expect(api.setLoopFile).toHaveBeenLastCalledWith(false);
+        expect(api.setLoopFile).toHaveBeenCalledTimes(callsBeforeFm);
     });
 });
 

@@ -1,9 +1,9 @@
 import { useState, useRef, useEffect, useCallback, useMemo, lazy, Suspense } from 'react';
-import { AnimatePresence, motion, useMotionValueEvent } from 'framer-motion';
+import { AnimatePresence, motion } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
 import { ChevronLeft } from 'lucide-react';
 import { loadCachedOrFetchCover } from './services/coverCache';
-import VisualizerRenderer from './components/visualizer/VisualizerRenderer';
+import SceneHost from './components/scenes/engine/SceneHost';
 import CommandPalette from './components/command-palette/CommandPalette';
 import AddToPlaylistHost from './components/app/AddToPlaylistHost';
 import ScratchpadHost from './components/app/scratchpad/ScratchpadHost';
@@ -32,7 +32,6 @@ import { UserGuideModal } from './components/modal/UserGuideModal';
 import ReleaseNotesDialog from './components/modal/ReleaseNotesDialog';
 import LegacyModelsPrompt from './components/modal/LegacyModelsPrompt';
 import { PlaybackEntryViewPrompt } from './components/modal/playback-entry-view/PlaybackEntryViewPrompt';
-import { LatticeFmNotice } from './components/modal/playback-entry-view/LatticeFmNotice';
 import { useStartupExperienceGate } from './hooks/useStartupExperienceGate';
 import { useAppDialogsModel } from './components/app/dialogs/useAppDialogsModel';
 import { useHomeModel } from './components/app/home/useHomeModel';
@@ -50,12 +49,12 @@ import { useWallHandoffDirector } from './components/app/presentation/wallHandof
 import WallToolsDockHost from './components/wall/WallToolsDock';
 import { buildPlayerViewFlags } from './components/app/presentation/buildPlayerViewFlags';
 import { buildVisualizerTheme } from './components/app/presentation/buildVisualizerTheme';
+import { AutoLyricSegmentationHost } from './components/app/playback/AutoLyricSegmentationHost';
 import { createCoverUrlResolver } from './components/app/playback/createCoverUrlResolver';
 import { createLyricsSetter } from './components/app/playback/createLyricsSetter';
 import { createLyricSegmentationActions } from './components/app/playback/createLyricSegmentationActions';
 import { useLyricWordSegmentation } from './hooks/useLyricWordSegmentation';
 import { useIcuFoliaSegmentation } from './hooks/useIcuFoliaSegmentation';
-import { useAutoLyricSegmentation } from './hooks/useAutoLyricSegmentation';
 import { handleOnlineMediaFailure } from './components/app/playback/handleOnlineMediaFailure';
 import { createOnlineRecoveryController } from './components/app/playback/restore/createOnlineRecoveryController';
 import { notePreviewPlaying } from './components/app/playback/source/previewNotice';
@@ -63,6 +62,7 @@ import { persistPlaybackCache } from './components/app/playback/persistPlaybackC
 import { useAppOverlaysModel } from './components/app/overlays/useAppOverlaysModel';
 import { resolveNextUpTrack } from './components/app/overlays/now-playing-toast/resolveNextUpTrack';
 import { shouldShowNowPlayingToast } from './components/app/overlays/now-playing-toast/nowPlayingToastVisibility';
+import { TrackEndCountdownHost } from './components/app/overlays/now-playing-toast/TrackEndCountdownHost';
 import { isWallLibrarySuite, useActiveLibrarySuiteId } from './library/app/librarySuiteChoice';
 import {
     createSearchAlbumCollection,
@@ -146,6 +146,7 @@ import { resolveCommandPaletteSearchSource, resolveSearchSource, useSearchNaviga
 import { useOnlineProviderAccountStore } from './stores/useOnlineProviderAccountStore';
 import { useShallow } from 'zustand/react/shallow';
 import { clampMediaVolume, toSafeRemoteUrl } from './utils/appPlaybackHelpers';
+import { shownLoopMode } from './utils/loopMode';
 import { hasLoopedToStart } from './services/playedTrackCache';
 import { getOnlineProviderIdForSong, isLocalPlaybackSong, isNavidromePlaybackSong, isStagePlaybackSong } from './utils/appPlaybackGuards';
 import { writeLyricOffset } from './utils/lyrics/lyricOffsetMemory';
@@ -195,6 +196,7 @@ import { usePlayerBottomBarPositioningEntry } from './hooks/usePlayerBottomBarPo
 import { PlayerBottomBarLayoutContext } from './components/floating-player/PlayerBottomBarLayoutContext';
 import { useFoliumHostBridge } from './mods/runtime/hostBridge';
 import { useFoliumHostActions } from './mods/runtime/hostActions';
+import { useFoliumAnimationIntensity } from './mods/runtime/visualizer/hostAnimationIntensity';
 import { refreshPrefetchAfterQueueEdit } from './services/prefetchService';
 import { FoliumStageLayerSlot } from './mods/folium/registries/stageLayers';
 import { runsOnWindows } from './utils/platform';
@@ -204,8 +206,6 @@ const DEV_DEBUG_SHORTCUT_LABEL = 'Alt+Shift+D';
 const ONLINE_AUDIO_URL_TTL_MS = 1200 * 1000;
 const ONLINE_AUDIO_URL_REFRESH_BUFFER_MS = 60 * 1000;
 const LOCAL_TAIL_DECODE_ERROR_TOLERANCE_SEC = 3;
-/** How many seconds before a track ends the now playing card previews the queue's next track. */
-const NEXT_UP_LEAD_SEC = 5;
 
 export default function App() {
     countRender('App');
@@ -566,7 +566,8 @@ export default function App() {
     // control below keeps editing the per-song value alone.
     const effectiveLyricTimelineOffsetMs = lyricTimelineOffsetMs + globalLyricTimelineOffsetMs;
 
-    const effectiveLoopMode: StageLoopMode = loopMode;
+    // Personal FM shows loop-all as off (nothing to go round to); single loop works there as anywhere.
+    const effectiveLoopMode: StageLoopMode = shownLoopMode(loopMode, isFmMode);
 
     const getTargetPlaybackVolume = useCallback(() => (isMuted ? 0 : volume), [isMuted, volume]);
 
@@ -671,6 +672,7 @@ export default function App() {
     });
     const {
         theme,
+        songThemePair,
         setTheme,
         aiTheme,
         customTheme,
@@ -700,6 +702,7 @@ export default function App() {
     // Folium: publish what is on screen to the main process (runtime snapshot
     // for main-side mods and the export service).
     useFoliumHostBridge(theme, isDaylight);
+    useFoliumAnimationIntensity(theme, setTheme);
 
     useThemeQuickEditorContext({
         aiTheme,
@@ -1012,6 +1015,7 @@ export default function App() {
         addOnlineSongsToQueue,
         playSong,
         playOnlineQueueFromStart,
+        playOnlineQueueShuffled,
         handleQueueAddAndPlay,
         handleSearchOverlaySubmit,
         handleSearchLoadMore,
@@ -1266,18 +1270,6 @@ export default function App() {
         isStageActive: isNowPlayingStageActive,
     }) : null), [isShowingTail, displaySong, playQueue, effectiveLoopMode, isFmMode, isNowPlayingStageActive]);
 
-    /** True while the card previews the next track (plain track-end countdown, not the blend). */
-    const [countdownActive, setCountdownActive] = useState(false);
-    useMotionValueEvent(currentTime, 'change', (time) => {
-        const shouldPreview = stageTrackPillOnScreen
-            && nextUpTrack !== null
-            && Number.isFinite(displayDuration)
-            && displayDuration > 0
-            && displayDuration - time > 0
-            && displayDuration - time <= NEXT_UP_LEAD_SEC;
-        setCountdownActive(prev => (prev === shouldPreview ? prev : shouldPreview));
-    });
-
     /**
      * The track the card shows while announcing a switch.
      * During a blend the arriving track comes from the queue successor of the displayed
@@ -1297,7 +1289,8 @@ export default function App() {
             album: getSongAlbumLabel(stageNextUpTrack) || null,
         };
     }, [stageTrackPillMode, stageNextUpTrack]);
-    const stageIsNextUp = stageNextUp !== null && (isShowingTail || countdownActive);
+    // A blend's preview. The plain track-end countdown is kept by TrackEndCountdownHost and added in AppOverlays.
+    const stageIsNextUp = stageNextUp !== null && isShowingTail;
 
 
     // The duration normally arrives on `loadedmetadata`, which fires when an element is given a
@@ -1458,6 +1451,8 @@ export default function App() {
     });
 
     useStagePlayerSearchBridge();
+    // Stable for the remote-command listener's deps; the cycle skips loop-all in Personal FM.
+    const cycleLoopModeFromRemote = useCallback(() => handleToggleLoopMode(isFmMode), [handleToggleLoopMode, isFmMode]);
 
     const {
         publishStagePlayerPlaybackUpdate,
@@ -1474,6 +1469,8 @@ export default function App() {
         getDisplayAudioElement: automix.getDisplayElement,
         effectiveLoopMode,
         isNowPlayingStageActive,
+        externalTrackTitle: nowPlayingTrack?.title ?? nowPlayingLyricPayload?.title ?? null,
+        externalTrackArtist: nowPlayingTrack?.artist ?? nowPlayingLyricPayload?.artist ?? null,
         mediaSessionPlayRef,
         mediaSessionPauseRef,
         mediaSessionPrevRef,
@@ -1486,7 +1483,7 @@ export default function App() {
         lyricTimelineOffsetMs: effectiveLyricTimelineOffsetMs,
         onRemoteExportCommand: handleExportCommand,
         onExternalPlayRequest: handleStageExternalPlayRequest,
-        onRemoteCycleLoopMode: handleToggleLoopMode,
+        onRemoteCycleLoopMode: cycleLoopModeFromRemote,
         onRemoteTransitionSeek: seekDuringTransition,
         publishTrackTransition: automixEnabled,
         isTrackTransitionAudible: automix.isTransitionAudible,
@@ -1907,8 +1904,6 @@ export default function App() {
     useLyricWordSegmentation();
     // Loads icu-folia, the default word segmenter, once a word-based mode shows Chinese or Japanese.
     useIcuFoliaSegmentation(visualizerMode);
-    // With 自动 AI 分词 on, segments a song that has no saved split by itself (issue #960).
-    useAutoLyricSegmentation({ visualizerMode, isLyricsLoading, save: lyricSegmentationActions.save });
     /**
      * Cancels a blend back onto the track the listener is hearing, or null when there is none.
      *
@@ -2110,6 +2105,10 @@ export default function App() {
         enqueue: addOnlineSongToQueue,
         navigateToPlayer,
         navigateToHome,
+        navigateBackFromPlayer,
+        navigateBackFromLattice,
+        backCollection,
+        closeSearchView,
         shuffleQueue,
         toggleLike: handleLike,
         openVolume: () => commandPalette.invokeCommandById('playback-volume'),
@@ -2218,6 +2217,7 @@ export default function App() {
         openStagePlayer,
         theme,
         playAll: playOnlineQueueFromStart,
+        shufflePlayAll: playOnlineQueueShuffled,
         addAllToQueue: addOnlineSongsToQueue,
         addSongToQueue: addOnlineSongToQueue,
         onStatusMessage: setStatusMsg,
@@ -2632,7 +2632,7 @@ export default function App() {
                 // If single loop is active, native loop handles it.
                 // If not, we handle queue logic.
                 if (effectiveLoopMode !== 'one') {
-                    void handleNextTrack({ allowStopOnMissing: true, shouldNavigateToPlayer: false });
+                    void handleNextTrack({ allowStopOnMissing: true, playedToEnd: true, shouldNavigateToPlayer: false });
                 }
             }}
             onLoadedMetadata={(e) => {
@@ -2693,7 +2693,7 @@ export default function App() {
                         return;
                     }
 
-                    void handleNextTrack({ allowStopOnMissing: true, shouldNavigateToPlayer: false });
+                    void handleNextTrack({ allowStopOnMissing: true, playedToEnd: true, shouldNavigateToPlayer: false });
                     return;
                 }
 
@@ -2823,6 +2823,7 @@ export default function App() {
                             <Lattice
                                 controls={{ playback: commandPaletteContext.playback, loopMode: effectiveLoopMode,
                                     invokeCommandById: commandPalette.invokeCommandById, canInvokeCommandById: commandPalette.canInvokeCommandById,
+                                    fmDislike: () => { void handleFmTrash(); },
                                     isStageActive: isNowPlayingStageActive, disabled: isNowPlayingControlDisabled }}
                                 lyrics={commandPaletteContext.shared.lyrics}
                                 lyricSource={visualizerRendererModel}
@@ -2838,8 +2839,8 @@ export default function App() {
                                 onBack={navigateBackFromLattice}
                                 onGoHome={navigateToHome}
                                 onOpenPlayer={navigateToPlayer}
-                                onPlaySong={(song, queue) => {
-                                    void playSong(song, queue, false, { shouldNavigateToPlayer: false });
+                                onPlaySong={(song, queue, asFm) => {
+                                    void playSong(song, queue, asFm, { shouldNavigateToPlayer: false });
                                 }}
                                 onTogglePlayback={togglePlay}
                                 onSeek={seekMainAudio}
@@ -2871,7 +2872,7 @@ export default function App() {
                 onClick={handleContainerClick}
             >
                 <PlayerBottomBarLayoutContext.Provider value={currentView === 'player'}>
-                    {shouldMountVisualizer && <VisualizerRenderer {...visualizerRendererModel} animateStyleSwitch />}
+                    {shouldMountVisualizer && <SceneHost {...visualizerRendererModel} songThemePair={songThemePair} animateStyleSwitch />}
                 </PlayerBottomBarLayoutContext.Provider>
             </div>
 
@@ -2981,7 +2982,9 @@ export default function App() {
             />
             <UserGuideModal theme={theme} />
             <PlaybackEntryViewPrompt theme={theme} />
-            <LatticeFmNotice />
+            {/* With 自动 AI 分词 on, segments a song that has no saved split by itself (issue #960). */}
+            <AutoLyricSegmentationHost visualizerMode={visualizerMode} isLyricsLoading={isLyricsLoading} save={lyricSegmentationActions.save} />
+            <TrackEndCountdownHost enabled={stageTrackPillOnScreen && nextUpTrack !== null} duration={displayDuration} />
         </AppShell>
     );
 }

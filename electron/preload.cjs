@@ -12,6 +12,23 @@ contextBridge.exposeInMainWorld('electron', {
     // The same model's WebGPU export ({ weights, manifest }) for the renderer's own GPU runtime, or null.
     getBeatThisGpuWeights: (model) => ipcRenderer.invoke('automix-beat-this-gpu-weights', model),
     getHtdemucsGpuWeights: () => ipcRenderer.invoke('automix-beat-this-gpu-weights', 'htdemucs'),
+    // The performance check (electron/perfCheck.cjs): open its window, read every process's memory, hand
+    // the chosen settings to the main window, and, in the main window, receive them.
+    openPerfCheck: () => ipcRenderer.invoke('perf-check-open'),
+    getPerfCheckMetrics: () => ipcRenderer.invoke('perf-check-metrics'),
+    applyPerfCheckChoice: (choice) => ipcRenderer.invoke('perf-check-apply', choice),
+    logPerfCheck: (text) => ipcRenderer.invoke('perf-check-log', text),
+    finishPerfCheck: () => ipcRenderer.invoke('perf-check-done'),
+    onPerfCheckState: (callback) => {
+        const listener = (_event, state) => callback(state);
+        ipcRenderer.on('perf-check-state', listener);
+        return () => ipcRenderer.removeListener('perf-check-state', listener);
+    },
+    onPerfCheckApply: (callback) => {
+        const listener = (_event, choice) => callback(choice);
+        ipcRenderer.on('perf-check-apply', listener);
+        return () => ipcRenderer.removeListener('perf-check-apply', listener);
+    },
     separateStems: (request) => ipcRenderer.invoke('automix-htdemucs', request),
     // Whether automix is switched on. While it is, the analysis worker keeps htdemucs loaded; switching
     // it off releases it. See electron/analysis/host.cjs.
@@ -23,6 +40,16 @@ contextBridge.exposeInMainWorld('electron', {
     getAutomixModelsPresent: () => ipcRenderer.invoke('automix-models-present'),
     // One-way stage marks from the automix session into the runtime log. See services/automix/diag.ts.
     diagMark: (text) => ipcRenderer.send('automix-diag', text),
+    // The scene engine's room sound (Steam Audio): SceneAcousticsApi of src/services/sceneSound/acousticsTypes.ts.
+    // See electron/acoustics/host.cjs.
+    sceneAcoustics: {
+        available: () => ipcRenderer.invoke('scene-acoustics-available'),
+        computeRoom: (request) => ipcRenderer.invoke('scene-acoustics-compute', request),
+    },
+    // A small picture of a scene's surface, to light the scene by it. See electron/scenes/screenCapture.cjs.
+    sceneScreen: {
+        capture: (request) => ipcRenderer.invoke('scene-screen-capture', request),
+    },
     // Old automix models left in the folder an earlier version let the listener choose. See main.cjs.
     checkLegacyModels: () => ipcRenderer.invoke('legacy-models-check'),
     resolveLegacyModels: (action) => ipcRenderer.invoke('legacy-models-resolve', action),
@@ -193,6 +220,8 @@ contextBridge.exposeInMainWorld('electron', {
     quitApp: () => ipcRenderer.invoke('app-quit'),
     isWindowMaximized: () => ipcRenderer.invoke('window-is-maximized'),
     isWindowFullscreen: () => ipcRenderer.invoke('window-is-fullscreen'),
+    hasNativeTrafficLights: () => ipcRenderer.invoke('window-has-native-traffic-lights'),
+    setTrafficLightsVisible: (visible) => ipcRenderer.invoke('window-set-traffic-lights-visible', visible),
     onWindowFullscreenChanged: (callback) => {
         const listener = (_event, fullscreen) => callback(fullscreen);
         ipcRenderer.on('window-fullscreen-changed', listener);
@@ -211,7 +240,7 @@ contextBridge.exposeInMainWorld('electron', {
     setKeyCaptureActive: (active) => ipcRenderer.send('key-capture-active', active === true),
     getMainWindowClickThroughEnabled: () => ipcRenderer.invoke('window-get-click-through'),
     setMainWindowClickThroughEnabled: (enabled) => ipcRenderer.invoke('window-set-click-through', enabled),
-    setMainWindowClickThroughUnlockHover: (active, viewportWidth, coordinates) => ipcRenderer.invoke('window-set-click-through-unlock-hover', active, viewportWidth, coordinates),
+    setMainWindowClickThroughUnlockHover: (active, viewportWidth, coordinates, side) => ipcRenderer.invoke('window-set-click-through-unlock-hover', active, viewportWidth, coordinates, side),
     getMainWindowAlwaysOnTop: () => ipcRenderer.invoke('window-get-always-on-top'),
     setMainWindowAlwaysOnTop: (enabled) => ipcRenderer.invoke('window-set-always-on-top', enabled),
     onMainWindowClickThroughChanged: (callback) => {

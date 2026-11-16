@@ -21,6 +21,9 @@ export const MOD_INTEGRATION_POINTS = [
     'src/components/modal/settings/pages/ModsPage.tsx',
     'src/components/modal/settings/pages/storage/visualConfigTransfer.ts',
     'src/components/remote/RemoteActionButtons.tsx', // README 没写（待补）
+    'src/components/scenes/settings/SceneRow.tsx',
+    'src/components/scenes/settings/SceneSettingsPanel.tsx',
+    'src/components/scenes/settings/SceneWindow.tsx',
     'src/components/visualizer/VisualizerBackdrop.tsx',
     'src/components/visualizer/VisualizerShell.tsx',
     'src/components/visualizer/preview/LyricStylePicture.tsx',
@@ -28,6 +31,7 @@ export const MOD_INTEGRATION_POINTS = [
     'src/components/visualizer/window/VisPlayground.tsx',
     'src/components/visualizer/window/VisPlaygroundSettingsPanel.tsx',
     'src/dev/mockSong.ts', // README 没写（待补）
+    'src/dev/mockLibrary.ts', // README 没写（待补）：与 mockSong 同一种开发用接入（播放服务 + 歌曲 DTO）
     'src/hooks/useRemoteControlActions.ts', // README 没写（待补）
     'src/services/remoteControlActions.ts',
 ];

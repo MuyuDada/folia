@@ -22,7 +22,9 @@ export const APPEARANCE_DESTINATIONS = {
     'lattice_poster_tint_enabled': { config: null, why: '队列拼贴墙（Lattice）的设置，OBS 页面没有这面墙（用户 2026-11-08 定：配置码也用于 web 版 OBS 链接，只加 OBS 页面看得到的）' },
     'lattice_poster_tint_intensity': { config: null, why: '队列拼贴墙（Lattice）的设置，OBS 页面没有这面墙（用户 2026-11-08 定：配置码也用于 web 版 OBS 链接，只加 OBS 页面看得到的）' },
     'lattice_poster_tint_use_custom_color': { config: null, why: '队列拼贴墙（Lattice）的设置，OBS 页面没有这面墙（用户 2026-11-08 定：配置码也用于 web 版 OBS 链接，只加 OBS 页面看得到的）' },
+    'lattice_radio_hide_upcoming': { config: null, why: '队列拼贴墙（Lattice）电台墙的问号卡，OBS 页面没有这面墙（用户 2026-11-08 定：配置码也用于 web 版 OBS 链接，只加 OBS 页面看得到的）' },
     'lattice_vignette': { config: null, why: '队列拼贴墙（Lattice）的设置，OBS 页面没有这面墙（用户 2026-11-08 定：配置码也用于 web 版 OBS 链接，只加 OBS 页面看得到的）' },
+    'lattice_wall_form': { config: null, why: '队列拼贴墙（Lattice）用海报墙还是电台墙，OBS 页面没有这面墙（用户 2026-11-08 定：配置码也用于 web 版 OBS 链接，只加 OBS 页面看得到的）' },
     'wall_tools_queue_island_open': { config: null, why: '墙面工具的队列浮岛开没开，OBS 页面没有（用户 2026-11-08 定：配置码也用于 web 版 OBS 链接，只加 OBS 页面看得到的）' },
     // src/stores/useLibraryWallLookStore.ts
     'library_wall_backdrop_blur': { config: 'libraryWallBackdropBlur' },
@@ -51,6 +53,8 @@ export const APPEARANCE_DESTINATIONS = {
     'show_open_panel_close_button': { config: null, why: '播放页控件，OBS 页面不显示（isPlayerChromeHidden）（用户 2026-11-08 定：配置码也用于 web 版 OBS 链接，只加 OBS 页面看得到的）' },
     'transparent_player_background': { config: null, why: '主窗口透明，OBS 链接另有 transparent 参数（用户 2026-11-08 定：配置码也用于 web 版 OBS 链接，只加 OBS 页面看得到的）' },
     'use_native_mac_fullscreen_button': { config: null, why: '播放页控件，OBS 页面不显示（isPlayerChromeHidden）（用户 2026-11-08 定：配置码也用于 web 版 OBS 链接，只加 OBS 页面看得到的）' },
+    'use_native_mac_traffic_lights': { config: null, why: '主窗口标题栏，OBS 页面没有（用户 2026-11-08 定：配置码也用于 web 版 OBS 链接，只加 OBS 页面看得到的）' },
+    'window_titlebar_side': { config: null, why: '主窗口标题栏，OBS 页面没有（用户 2026-11-08 定：配置码也用于 web 版 OBS 链接，只加 OBS 页面看得到的）' },
     // src/stores/useScratchpadSettingsStore.ts
     'scratchpad_handle_position': { config: null, why: '速记簿把手，OBS 页面没有（用户 2026-11-08 定：配置码也用于 web 版 OBS 链接，只加 OBS 页面看得到的）' },
     'scratchpad_handle_style': { config: 'scratchpadHandleStyle' },

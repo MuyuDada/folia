@@ -2,7 +2,8 @@
 // D605 的登记表：主进程注册的每个 IPC 通道和它的信任级别。
 // - any：任意窗口都能调（只读、不含个人数据的状态查询）。平台请求（*-request）不能是 any，测试强制；写操作、花钱的、回个人数据的都不该是 any
 // - first-party：只给第一方窗口（主窗口、遥控窗口等），处理函数必须经登记的守卫工厂（scanIpc.mjs 的 GUARD_FACTORIES），或第一条语句就校验 event.sender
-// 新加通道要先登记并写原因。2026-11-08 复核过一遍：只有主窗口和遥控窗口带 preload，main.cjs 的 isolateFirstPartyWindow
+// 新加通道要先登记并写原因。2026-11-08 复核过一遍：只有主窗口和遥控窗口带 preload（2026-11-15 起还有性能检测窗口，
+// electron/perfCheck.cjs：它不算第一方，第一方通道一律拒它，它自己的两条通道按它的 webContents 校验），main.cjs 的 isolateFirstPartyWindow
 // 不让它们开出别的窗口、也不让它们导航到应用以外的页面（那样的页面会带着 preload）；写、花钱、回个人数据的通道都加了来源校验。
 // 循环里拼出名字的通道（模组系统 folia-mods:*、HiFi hifi:*）扫描认不出，按前缀登记在 IPC_DYNAMIC_PREFIXES。
 // 检查在 test/unit/dedicatus/contracts/ipc.test.ts。
@@ -70,6 +71,11 @@ export const IPC_CHANNELS = {
     'obs-browser-source-regenerate-token': { level: 'first-party', why: '现状：有来源校验' },
     'obs-browser-source-set-enabled': { level: 'first-party', why: '现状：有来源校验' },
     'open-external-url': { level: 'first-party', why: '打开系统浏览器，协议白名单在 openExternalUrl（firstParty）' },
+    'perf-check-apply': { level: 'first-party', why: '只收性能检测窗口的（按它的 webContents 校验），转给主窗口改画面设置' },
+    'perf-check-done': { level: 'first-party', why: '让主窗口放开检测期间的暂停，只收性能检测窗口的（按它的 webContents 校验）' },
+    'perf-check-log': { level: 'first-party', why: '写运行日志，只收性能检测窗口的（按它的 webContents 校验）' },
+    'perf-check-metrics': { level: 'any', why: '只读各进程占的内存，不含个人数据' },
+    'perf-check-open': { level: 'first-party', why: '开一个窗口（firstParty）' },
     'playback-display-sleep-set-active': { level: 'first-party', why: '现状：有来源校验' },
     'playback-sync-bridge-get-status': { level: 'first-party', why: '现状：有来源校验' },
     'qishui-api-request': { level: 'first-party', why: '现状：有来源校验' },
@@ -95,6 +101,9 @@ export const IPC_CHANNELS = {
     'save-cover-cache': { level: 'first-party', why: '写封面缓存文件（firstParty）' },
     'save-local-cover-asset': { level: 'first-party', why: '写本地歌曲封面（firstParty）' },
     'save-settings': { level: 'first-party', why: '写主进程设置（firstParty）' },
+    'scene-acoustics-available': { level: 'first-party', why: '只读场景声线追踪能不能用（firstParty）' },
+    'scene-acoustics-compute': { level: 'first-party', why: '算场景房间的声音，占 CPU（firstParty）' },
+    'scene-screen-capture': { level: 'first-party', why: '截主窗口一小块画面给场景打光（firstParty）' },
     'segment-lyrics': { level: 'first-party', why: '用用户的 AI 额度（firstParty）' },
     'set-app-locale': { level: 'first-party', why: '写界面语言（firstParty）' },
     'spotify-api-request': { level: 'first-party', why: '现状：有来源校验' },
@@ -131,6 +140,7 @@ export const IPC_CHANNELS = {
     'window-get-always-on-top': { level: 'first-party', why: '现状：有来源校验' },
     'window-get-click-through': { level: 'first-party', why: '现状：有来源校验' },
     'window-get-transparent-mode': { level: 'first-party', why: '现状：有来源校验' },
+    'window-has-native-traffic-lights': { level: 'first-party', why: '读主窗口是否带 mac 原生红绿灯（firstParty）' },
     'window-is-fullscreen': { level: 'first-party', why: '现状：有来源校验' },
     'window-is-maximized': { level: 'any', why: '只读主窗口是否最大化' },
     'window-minimize': { level: 'first-party', why: '操作主窗口（firstParty）' },
@@ -140,6 +150,7 @@ export const IPC_CHANNELS = {
     'window-set-click-through': { level: 'first-party', why: '现状：有来源校验' },
     'window-set-click-through-unlock-hover': { level: 'first-party', why: '现状：有来源校验' },
     'window-set-native-theme': { level: 'first-party', why: '改窗口的明暗外观（firstParty）' },
+    'window-set-traffic-lights-visible': { level: 'first-party', why: 'mac 原生红绿灯显隐（firstParty）' },
     'window-set-transparent-mode': { level: 'first-party', why: '现状：有来源校验' },
     'window-toggle-fullscreen': { level: 'first-party', why: '现状：有来源校验' },
     'window-toggle-maximize': { level: 'first-party', why: '操作主窗口（firstParty）' },

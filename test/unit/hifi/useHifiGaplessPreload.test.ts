@@ -330,8 +330,8 @@ describe('hifiGaplessNextSong', () => {
 
     it('follows the loop and Personal FM rules of handleNextTrack', () => {
         expect(next({ loopMode: 'one' })).toBeNull();
-        // In Personal FM mpv does not loop the file, so the next song still follows.
-        expect(next({ loopMode: 'one', isFmMode: true })).toBe('b');
+        // mpv loops the file in Personal FM as well, so nothing follows there either.
+        expect(next({ loopMode: 'one', isFmMode: true })).toBeNull();
         const atEnd = { currentSong: C, current: { trackKey: 'local:c#1', songKey: 'local:c' }, engineTrackKey: 'local:c#1' };
         expect(next(atEnd)).toBeNull();
         expect(next({ ...atEnd, loopMode: 'all' })).toBe('a');
@@ -366,7 +366,7 @@ describe('useHifiGaplessPreload', () => {
         const queued = await pushSwitch();
         expect(useHifiTrackStore.getState().current).toMatchObject({ trackKey: queued.trackKey, promotedByGapless: true });
         expect(handleNextTrack).toHaveBeenCalledTimes(1);
-        expect(handleNextTrack).toHaveBeenCalledWith({ allowStopOnMissing: true, shouldNavigateToPlayer: false });
+        expect(handleNextTrack).toHaveBeenCalledWith({ allowStopOnMissing: true, playedToEnd: true, shouldNavigateToPlayer: false });
         expect(shimEvents).toEqual([]);
         expect(usePlaybackStore.getState().playerState).toBe(PlayerState.PLAYING);
         expect(api.stop).not.toHaveBeenCalled();

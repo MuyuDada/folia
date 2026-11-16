@@ -168,7 +168,7 @@
       "count": 6
     },
     "@typescript-eslint/no-unsafe-assignment": {
-      "count": 24
+      "count": 23
     },
     "@typescript-eslint/no-unsafe-call": {
       "count": 10
@@ -2467,9 +2467,6 @@
     },
     "@typescript-eslint/no-unnecessary-type-assertion": {
       "count": 2
-    },
-    "@typescript-eslint/no-unused-vars": {
-      "count": 1
     }
   },
   "src/components/command-palette/commands/searchCommands.ts": {
@@ -5383,7 +5380,7 @@
   },
   "src/components/visualizer/monet/MonetSettingsPanel.tsx": {
     "@typescript-eslint/no-unnecessary-condition": {
-      "count": 20
+      "count": 18
     },
     "@typescript-eslint/no-useless-default-assignment": {
       "count": 1
@@ -7708,11 +7705,6 @@
       "count": 1
     }
   },
-  "src/library/suites/bravais/useBravaisPosterTilt.ts": {
-    "@typescript-eslint/no-deprecated": {
-      "count": 1
-    }
-  },
   "src/library/suites/bravais/useBravaisReflowDriver.ts": {
     "@eslint-community/eslint-comments/require-description": {
       "count": 1
@@ -7725,6 +7717,11 @@
     }
   },
   "src/library/suites/bravais/useBravaisSeam.ts": {
+    "@typescript-eslint/no-deprecated": {
+      "count": 1
+    }
+  },
+  "src/library/suites/bravais/useBravaisTilt.ts": {
     "@typescript-eslint/no-deprecated": {
       "count": 1
     }
@@ -7923,9 +7920,6 @@
       "count": 1
     },
     "@typescript-eslint/no-explicit-any": {
-      "count": 2
-    },
-    "@typescript-eslint/no-misused-promises": {
       "count": 2
     },
     "@typescript-eslint/no-unnecessary-condition": {
@@ -8718,7 +8712,7 @@
   },
   "src/services/analysis/beatThisWgsl/runtime.ts": {
     "@typescript-eslint/no-unnecessary-condition": {
-      "count": 2
+      "count": 1
     }
   },
   "src/services/analysis/drumHitPicking.ts": {
@@ -9142,7 +9136,7 @@
   },
   "src/services/localLibraryImportCatalog.ts": {
     "@stylistic/indent": {
-      "count": 115
+      "count": 62
     },
     "@typescript-eslint/no-unnecessary-type-assertion": {
       "count": 1
@@ -11206,16 +11200,16 @@
       "count": 2
     },
     "@typescript-eslint/no-explicit-any": {
-      "count": 80
+      "count": 72
     },
     "@typescript-eslint/no-unsafe-argument": {
       "count": 4
     },
     "@typescript-eslint/no-unsafe-assignment": {
-      "count": 483
+      "count": 455
     },
     "@typescript-eslint/no-unsafe-member-access": {
-      "count": 999
+      "count": 966
     },
     "dedicatus/restricted-apis": {
       "count": 1
@@ -12032,7 +12026,7 @@
   },
   "test/component/libraryBehavior.spec.ts": {
     "@stylistic/indent": {
-      "count": 662
+      "count": 660
     }
   },
   "test/component/monetPortraitImage.spec.ts": {

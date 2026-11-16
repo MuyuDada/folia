@@ -218,8 +218,10 @@ describe('Apple Music companion requests', () => {
         expect(await result).toMatchObject({ ok: false, error: 'not-ready' });
     });
 
-    it('uses a catalog ID to play and rejects library IDs or invalid seek values', async () => {
-        expect(validateRequest({ id: '5', operation: 'playSong', params: { catalogId: 'i.library' } })).toBeNull();
+    it('uses a catalog ID to play and rejects malformed IDs or invalid seek values', async () => {
+        for (const catalogId of ['l.album', 'i.', 'i.bad-id', '../123', 'i.' + 'a'.repeat(101)]) {
+            expect(validateRequest({ id: '5', operation: 'playSong', params: { catalogId } })).toBeNull();
+        }
         expect(validateRequest({ id: '5', operation: 'seek', params: { seconds: -1 } })).toBeNull();
         const setQueue = vi.fn(async () => {});
         const play = vi.fn(async () => {});
@@ -227,6 +229,21 @@ describe('Apple Music companion requests', () => {
         const request = validateRequest({ id: '5', operation: 'playSong', params: { catalogId: '123' } });
         const result = await runInNewContext(requestExpression(request), { window: { MusicKit: { getInstance: () => mk } } });
         expect(setQueue).toHaveBeenCalledWith({ song: '123', startPlaying: false, startTime: 0 });
+        expect(play).toHaveBeenCalledOnce();
+        expect(result).toMatchObject({ ok: true });
+    });
+
+    // An uploaded song has no catalog counterpart: the page queues it by its library id, as Apple's web player does.
+    it('plays and prepares an upload by its library ID', async () => {
+        expect(validateRequest({ id: '5', operation: 'prepareNext', params: { catalogId: 'i.upload', nextIds: ['456'] } }))
+            .toMatchObject({ params: { catalogId: 'i.upload', nextIds: ['456'] } });
+        expect(validateRequest({ id: '5', operation: 'prepareNext', params: { catalogId: '123', nextIds: ['i.upload'] } })).toBeNull();
+        const setQueue = vi.fn(async () => {});
+        const play = vi.fn(async () => {});
+        const mk = { api: { music: vi.fn() }, setQueue, play };
+        const request = validateRequest({ id: '5', operation: 'playSong', params: { catalogId: 'i.4YBN2bxs490m70' } });
+        const result = await runInNewContext(requestExpression(request), { window: { MusicKit: { getInstance: () => mk } } });
+        expect(setQueue).toHaveBeenCalledWith({ song: 'i.4YBN2bxs490m70', startPlaying: false, startTime: 0 });
         expect(play).toHaveBeenCalledOnce();
         expect(result).toMatchObject({ ok: true });
     });
@@ -290,6 +307,22 @@ describe('Apple Music companion requests', () => {
         expect(mk.volume).toBe(0.25);
     });
 
+    it('sets the page player repeat of one track, never its list repeat', async () => {
+        expect(validateRequest({ id: '1', operation: 'setRepeatOne', params: { enabled: 'yes' } })).toBeNull();
+        expect(validateRequest({ id: '1', operation: 'setRepeatOne', params: {} })).toBeNull();
+        const mk = { api: { music: vi.fn() }, setRepeatMode: vi.fn() };
+        for (const enabled of [true, false]) {
+            const request = validateRequest({ id: '1', operation: 'setRepeatOne', params: { enabled } });
+            expect(await runInNewContext(requestExpression(request), { window: { MusicKit: { getInstance: () => mk } } }))
+                .toMatchObject({ ok: true });
+        }
+        expect(mk.setRepeatMode.mock.calls).toEqual([[1], [0]]);
+        const plain = { api: { music: vi.fn() }, repeatMode: 0 };
+        const request = validateRequest({ id: '1', operation: 'setRepeatOne', params: { enabled: true } });
+        await runInNewContext(requestExpression(request), { window: { MusicKit: { getInstance: () => plain } } });
+        expect(plain.repeatMode).toBe(1);
+    });
+
     it('accepts only a bounded start position for a song', () => {
         expect(validateRequest({ id: '1', operation: 'playSong', params: { catalogId: '123', startSec: 12.5 } }))
             .toMatchObject({ params: { catalogId: '123', startSec: 12.5 } });
@@ -328,7 +361,7 @@ describe('Apple Music companion requests', () => {
         };
         expect(await runInNewContext(requestExpression(request), { window: { MusicKit: { getInstance: () => mk } } })).toEqual({
             ok: true, data: {
-                itemId: 'i.library', catalogId: '123', isPlaying: false, state: 5, queueLength: 1, queueKeys: ['length'], positionMs: 42500, durationMs: 200000,
+                itemId: 'i.library', catalogId: '123', isPlaying: false, state: 5, repeatMode: null, queueLength: 1, queueKeys: ['length'], positionMs: 42500, durationMs: 200000,
             },
         });
     });
