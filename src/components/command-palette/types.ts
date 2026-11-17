@@ -13,7 +13,7 @@ import type { LibraryDirectorySurfaceHandle } from '../../library/core/directory
 import type { LibraryArtistSurfaceHandle } from '../../library/core/artist/artist.contract';
 import type { LibrarySuiteChromeHandle } from '../../library/core/suite/suiteChrome.contract';
 import { type SettingsModalInitialTab, type SettingsSubviewId, type VisualizerSettingsSection } from '../../stores/useSettingsModalStore';
-import type { SettingsAnchorId } from '../modal/settings/navigation/settingsAnchorModel';
+import type { SettingsAnchorId } from '../../utils/settingsAnchorModel';
 import type { LyricStaffAbsorbMode, LyricStaffPolicy } from '../../utils/lyrics/staffCreditsPolicy';
 import type { AudioEqualizerModeId } from '../../utils/audioEqualizer';
 import type { ThemeGenerationSource } from '../../services/themePreferences';
@@ -307,6 +307,8 @@ export type CommandPaletteSettingsContext = {
     setLibraryWallWindowsPerBlock: (windowsPerBlock: number) => void;
     /** bravais collection tiles' stack edges (useLibraryWallLookStore.collectionStackEdges): flips the stored value. */
     toggleLibraryWallStackEdges: () => void;
+    /** bravais collection pages' tilt (useLibraryWallLookStore.collectionTilt): flips the stored value. */
+    toggleLibraryWallCollectionTilt: () => void;
     /** bravais info strip always see-through (useLibraryWallLookStore.seamClear); read live. */
     libraryWallSeamClear: () => boolean;
     toggleLibraryWallSeamClear: () => void;
