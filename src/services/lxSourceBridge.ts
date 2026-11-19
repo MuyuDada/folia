@@ -116,13 +116,21 @@ const toBase64Url = (text: string) => {
 };
 
 // 解析地址。歌名/歌手/专辑一起带上：脚本做元数据兜底时要用，歌曲 id 之外的字段它拿不到别的来源。
-const resolveEndpointUrl = (providerId: string, song: SongResult, quality: AudioQualityPreference, mediaId: string) => {
+// `fallback` 是平台原本解析出的地址：脚本解析不了（云盘等私有内容）时由服务端 302 回它。
+const resolveEndpointUrl = (
+    providerId: string,
+    song: SongResult,
+    quality: AudioQualityPreference,
+    mediaId: string,
+    fallback: string | null,
+) => {
     const ref = song.sourceRef;
     const providerData = ref?.kind === 'online' ? ref.providerData : undefined;
     const mediaMid = providerData?.mediaMid;
     const payload = {
         provider: providerId,
         quality,
+        ...(fallback === null ? {} : { fallback }),
         song: {
             id: mediaId,
             title: song.name,
@@ -135,11 +143,17 @@ const resolveEndpointUrl = (providerId: string, song: SongResult, quality: Audio
     return `${base}${ENDPOINT}?op=resolve&p=${toBase64Url(JSON.stringify(payload))}`;
 };
 
+/** 云盘/私有歌曲：只有登录的本人能播，公共脚本解析不了，直接不接管（与桌面模组的判定一致）。 */
+const isPrivateVariant = (song: SongResult) => {
+    const ref = song.sourceRef;
+    return ref?.kind === 'online' && ref.variant === 'cloud';
+};
+
 /**
- * 给一首歌换上音源桥的地址；这份部署没配脚本、平台不在脚本声明里、或不是网页版时，原样返回。
+ * 给一首歌换上音源桥的地址；这份部署没配脚本、平台不在脚本声明里、云盘歌曲、或不是网页版时，原样返回。
  *
  * `source` 是平台自己解析出来的地址（可能为 null，例如平台拒绝了这首歌），返回值的其余字段沿用它的，
- * 只换 url：ReplayGain、试听标记这些仍然来自平台。
+ * 只换 url：ReplayGain、试听标记这些仍然来自平台；它的地址也一并带上当兜底。
  */
 export const applyLxSourceBridge = async (
     providerId: string,
@@ -150,10 +164,11 @@ export const applyLxSourceBridge = async (
     const status = await lxSourceStatus();
     if (!status || !status.configured || status.disabled) return source;
     if (!status.providers.includes(providerId)) return source;
+    if (isPrivateVariant(song)) return source;
 
     const mediaId = mediaIdOf(song);
     if (mediaId === '') return source;
 
-    const url = resolveEndpointUrl(providerId, song, quality, mediaId);
+    const url = resolveEndpointUrl(providerId, song, quality, mediaId, source?.url ?? null);
     return { ...(source ?? { quality, fetchedAt: Date.now() }), url, fetchedAt: Date.now(), preview: false };
 };

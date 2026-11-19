@@ -70,8 +70,29 @@ describe('applyLxSourceBridge', () => {
         expect(payload).toEqual({
             provider: 'netease',
             quality: 'lossless',
+            fallback: 'https://cdn.example/a.mp3',
             song: { id: '123456', title: '测试歌', artist: '甲 / 乙', album: '测试专辑', mediaMid: 'mid-1' },
         });
+    });
+
+    it('leaves a cloud-disk song alone: only its own account can play it', async () => {
+        stubWeb();
+        stubStatus({ configured: true, providers: ['netease'], sources: { wy: { name: '网易', qualitys: ['320k'], musicUrl: true } } });
+        const cloudSong = {
+            ...song,
+            sourceRef: { kind: 'online', providerId: 'netease', mediaId: '123456', variant: 'cloud' },
+        } as unknown as SongResult;
+
+        await expect(applyLxSourceBridge('netease', cloudSong, 'high', source)).resolves.toBe(source);
+    });
+
+    it('carries no fallback when the platform gave no address of its own', async () => {
+        stubWeb();
+        stubStatus({ configured: true, providers: ['netease'], sources: { wy: { name: '网易', qualitys: ['320k'], musicUrl: true } } });
+
+        const result = await applyLxSourceBridge('netease', song, 'high', null);
+        const payload = JSON.parse(Buffer.from(new URL(result!.url).searchParams.get('p')!, 'base64url').toString('utf8'));
+        expect(payload).not.toHaveProperty('fallback');
     });
 
     it('still answers where the platform itself gave no address', async () => {

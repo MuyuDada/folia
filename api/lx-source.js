@@ -19,6 +19,8 @@ const SCRIPT_FETCH_TIMEOUT_MS = 10_000;
 const PROBE_TIMEOUT_MS = 8_000;
 const MAX_REDIRECTS = 5;
 const CACHE_TTL_MS = 10 * 60_000;
+// 兜底地址（宿主原本解析出的）缓存得短一些：脚本链路恢复后应尽快切回脚本地址。
+const FALLBACK_TTL_MS = 5 * 60_000;
 const INITED_WAIT_MS = 3_000;
 const RUNTIME_RETRY_MS = 30_000;
 const BROWSER_UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
@@ -398,14 +400,13 @@ const waitForInited = async (runtime, ms = INITED_WAIT_MS) => {
     });
     return runtime.inited;
 };
-// ---------------------------------------------------------------- 解析
 const resolveCache = new Map();
 const locationCache = new Map();
 const sweepCaches = () => {
     const now = Date.now();
     for (const store of [resolveCache, locationCache]) {
         for (const [key, entry] of store) {
-            if (now - entry.at > CACHE_TTL_MS)
+            if (now - entry.at > (entry.ttl ?? CACHE_TTL_MS))
                 store.delete(key);
         }
         while (store.size > 256)
@@ -413,13 +414,17 @@ const sweepCaches = () => {
     }
 };
 // 缓存一条异步结果：同一个键并发来的时候共用同一个 Promise，失败的结果不留在表里。
-const memo = (store, key, work) => {
+// 结果里带 `fromScript: false` 的（走的是兜底地址）按更短的 TTL 记，好让脚本恢复后尽快切回去。
+const memoLocated = (store, key, work, isFallback) => {
     sweepCaches();
     const existing = store.get(key);
     if (existing)
         return existing.promise;
     const entry = { at: Date.now(), promise: work() };
-    entry.promise.catch(() => {
+    entry.promise.then(value => {
+        if (isFallback(value))
+            entry.ttl = FALLBACK_TTL_MS;
+    }, () => {
         if (store.get(key) === entry)
             store.delete(key);
     });
@@ -456,7 +461,23 @@ const resolveMusicUrl = async (payload) => {
     return { url: raw, quality: level };
 };
 const resolveCacheKey = (payload) => `${payload.provider}|${payload.song.id == null ? '' : String(payload.song.id)}|${payload.quality ?? ''}`;
-const cachedResolve = (payload) => memo(resolveCache, resolveCacheKey(payload), () => resolveMusicUrl(payload).then(result => result.url));
+// 脚本解析失败时回退到宿主原本解析出的地址：云盘等私有内容脚本拿不到，不回退就没法播。
+// 回退结果按 5 分钟记，脚本链路恢复后下一次播放就切回脚本地址。
+const resolveTarget = async (payload) => {
+    try {
+        const result = await resolveMusicUrl(payload);
+        return { url: result.url, fromScript: true };
+    }
+    catch (error) {
+        const fallback = payload.fallback;
+        if (typeof fallback === 'string' && /^https?:\/\//i.test(fallback)) {
+            console.warn('[lx-source] 脚本解析失败，改用宿主地址兜底：', describeError(error).message);
+            return { url: fallback, fromScript: false };
+        }
+        throw error;
+    }
+};
+const cachedResolve = (payload) => memoLocated(resolveCache, resolveCacheKey(payload), () => resolveTarget(payload), target => !target.fromScript);
 // ---------------------------------------------------------------- 中转签名
 //
 // 中转地址里的目标由 HMAC 保护，签名不对就不转：这样它不会被当成开放代理用。密钥优先取
@@ -549,7 +570,18 @@ const toPlayableLocation = async (rawUrl, origin) => {
 };
 // 落地结果单独缓存：探测过的终点与「直连还是中转」的决定都不必每次播放重算，否则每首歌都要多打
 // 一次上游（既慢又容易被当成刷量）。键里带 origin：中转地址是绝对地址，换个接入域名就不能复用。
-const cachedLocation = (payload, origin) => memo(locationCache, `${resolveCacheKey(payload)}|${origin}`, async () => toPlayableLocation(await cachedResolve(payload), origin));
+// 兜底地址可能是宿主给这一个听众的（带会话的签名地址），所以兜底那条按地址本身再分一次键：
+// 绝不能把 A 的地址 302 给 B。
+const cachedLocation = (payload, origin) => {
+    const fallbackTag = payload.fallback
+        ? createHash('sha1').update(payload.fallback).digest('base64url').slice(0, 12)
+        : 'script';
+    const key = `${resolveCacheKey(payload)}|${origin}|${fallbackTag}`;
+    return memoLocated(locationCache, key, async () => {
+        const target = await cachedResolve(payload);
+        return { location: await toPlayableLocation(target.url, origin), fromScript: target.fromScript };
+    }, located => !located.fromScript).then(located => located.location);
+};
 // ---------------------------------------------------------------- 三个操作
 const respondJson = (res, status, body) => {
     res.statusCode = status;
@@ -628,9 +660,12 @@ const parsePayload = (req) => {
     const id = parsed.song.id;
     if (!provider || (typeof id !== 'string' && typeof id !== 'number'))
         return null;
+    // 兜底地址只认 http(s)：别的写法（javascript: 之类）一律丢弃，免得变成任意跳转。
+    const fallback = typeof parsed.fallback === 'string' && /^https?:\/\//i.test(parsed.fallback) ? parsed.fallback : undefined;
     return {
         provider,
         quality: typeof parsed.quality === 'string' ? parsed.quality : undefined,
+        ...(fallback === undefined ? {} : { fallback }),
         song: {
             id,
             title: readString(parsed.song.title),
